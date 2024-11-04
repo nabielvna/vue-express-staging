@@ -290,7 +290,6 @@ const handleSubmit = async () => {
         })
     } catch (error) {
         console.error('Login error:', error)
-        // Error will be displayed through storeError in template
     }
 }
 </script>

@@ -1,6 +1,6 @@
 <template>
     <div class="w-full min-h-screen bg-black">
-        <div class="max-w-4xl mx-auto px-6 py-8">
+        <div class="max-w-7xl mx-auto px-6 py-8">
             <!-- Slot untuk header -->
             <!-- <slot name="header"></slot> -->
 

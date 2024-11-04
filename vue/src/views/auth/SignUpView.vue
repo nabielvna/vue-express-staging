@@ -190,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { storeToRefs } from 'pinia'
 
@@ -209,7 +209,19 @@ const errors = reactive({
     password: '',
 })
 
-// Remove the local alert state since we're using store error
+// Add form validation computed property
+const isFormValid = computed(() => {
+    return (
+        name.value.trim() &&
+        email.value.trim() &&
+        password.value.length >= 8 &&
+        acceptTerms.value &&
+        !errors.name &&
+        !errors.email &&
+        !errors.password
+    )
+})
+
 const validateForm = () => {
     let isValid = true
 
@@ -242,11 +254,6 @@ const validateForm = () => {
         isValid = false
     }
 
-    // Terms validation
-    if (!acceptTerms.value) {
-        isValid = false
-    }
-
     return isValid
 }
 
@@ -255,20 +262,26 @@ const togglePassword = () => {
 }
 
 const handleSubmit = async () => {
-    authStore.clearError() // Clear any previous errors
-
-    if (!validateForm()) return
-
     try {
-        await authStore.signup({
+        // Clear previous errors
+        authStore.clearError()
+
+        // Validate form
+        if (!validateForm()) return
+
+        // Prepare signup data
+        const signupData = {
             name: name.value.trim(),
             email: email.value.trim(),
             password: password.value,
-            acceptTerms: acceptTerms.value,
-        })
+            accept_policy: acceptTerms.value,
+        }
+
+        // Call signup action
+        await authStore.signup(signupData)
     } catch (error) {
         console.error('Registration error:', error)
-        // Error will be displayed through storeError in template
+        // The error will be handled by the store and displayed through storeError
     }
 }
 </script>

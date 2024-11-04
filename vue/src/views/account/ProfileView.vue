@@ -12,7 +12,7 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-8">
-            <!-- Profile Picture -->
+            <!-- Rest of the template remains the same until the form fields -->
             <div class="flex items-start space-x-6">
                 <!-- Avatar Image -->
                 <div class="relative group">
@@ -75,9 +75,8 @@
                 </div>
             </div>
 
-            <!-- Profile Information -->
+            <!-- Name Field -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Name Field -->
                 <div class="space-y-2">
                     <label
                         for="name"
@@ -96,7 +95,7 @@
                         type="text"
                         v-model="formData.name"
                         :placeholder="initialData?.name || ''"
-                        @input="checkChanges"
+                        @input="handleInputChange('name', $event)"
                         class="w-full px-4 py-2.5 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         :class="{
                             'border-yellow-500': isFieldChanged('name'),
@@ -127,7 +126,7 @@
                         type="text"
                         v-model="formData.nickname"
                         :placeholder="initialData?.nickname || ''"
-                        @input="checkChanges"
+                        @input="handleInputChange('nickname', $event)"
                         class="w-full px-4 py-2.5 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         :class="{
                             'border-yellow-500': isFieldChanged('nickname'),
@@ -159,7 +158,7 @@
                         :placeholder="
                             initialData?.phone_number || '+1 (555) 000-0000'
                         "
-                        @input="checkChanges"
+                        @input="handleInputChange('phone_number', $event)"
                         class="w-full px-4 py-2.5 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         :class="{
                             'border-yellow-500': isFieldChanged('phone_number'),
@@ -173,10 +172,12 @@
                 class="flex items-center justify-between pt-4 border-t border-gray-700"
             >
                 <div class="text-sm text-gray-400">
-                    <span v-if="hasChanges"
-                        >Fields marked with yellow border have unsaved
-                        changes</span
-                    >
+                    <span v-if="hasChanges">
+                        Changed fields:
+                        <span class="text-yellow-400">
+                            {{ getChangedFields() }}
+                        </span>
+                    </span>
                     <span v-else>No changes to save</span>
                 </div>
 
@@ -226,7 +227,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import axiosInstance from '@/utils/axios'
 
@@ -238,7 +239,9 @@ const previewUrl = ref(null)
 const fileInput = ref(null)
 const imageError = ref('')
 const hasChanges = ref(false)
+const showSuccess = ref(false)
 const initialData = ref(null)
+const changedFields = reactive(new Set())
 
 // Form Data
 const formData = reactive({
@@ -252,6 +255,37 @@ const errors = reactive({
     name: '',
 })
 
+// Data Fetching
+const fetchProfile = async () => {
+    try {
+        const response = await axiosInstance.get('/auth/me')
+
+        if (response.data.status === 'success') {
+            const userData = response.data.data.user
+
+            // Set initial data
+            initialData.value = {
+                name: userData.name || '',
+                nickname: userData.nickname || '',
+                phone_number: userData.phone_number || '',
+                profile_picture_url: userData.profile_picture_url || null,
+            }
+
+            // Set form data
+            formData.name = userData.name || ''
+            formData.nickname = userData.nickname || ''
+            formData.phone_number = userData.phone_number || ''
+
+            // Set profile picture
+            if (userData.profile_picture_url) {
+                profilePictureUrl.value = userData.profile_picture_url
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching profile:', error)
+    }
+}
+
 // Change Detection Methods
 const isFieldChanged = fieldName => {
     if (!initialData.value) return false
@@ -260,78 +294,69 @@ const isFieldChanged = fieldName => {
     return initial !== current
 }
 
-const checkChanges = () => {
-    if (!initialData.value) return
+const handleInputChange = (fieldName, event) => {
+    const newValue = event.target.value
+    formData[fieldName] = newValue
 
-    hasChanges.value =
-        isFieldChanged('name') ||
-        isFieldChanged('nickname') ||
-        isFieldChanged('phone_number') ||
-        previewUrl.value !== null
-}
+    // Check if value is different from initial
+    const isChanged = newValue !== (initialData.value?.[fieldName] || '')
 
-// Data Fetching
-const fetchProfile = async () => {
-    try {
-        const response = await axiosInstance.get('/api/v1/account/profile')
-
-        if (response.data.status === 'success') {
-            const userData = response.data.data
-
-            // Set initial data
-            initialData.value = {
-                name: userData.name || '',
-                nickname: userData.nickname || '',
-                phone_number: userData.phone_number || '',
-            }
-
-            // Set form data
-            Object.assign(formData, initialData.value)
-
-            // Set profile picture
-            if (userData.profile_picture_url) {
-                profilePictureUrl.value = `/${userData.profile_picture_url}`
-            }
-
-            // Reset changes flag
-            hasChanges.value = false
-        }
-    } catch (error) {
-        console.error('Error fetching profile:', error)
-        // You might want to show a toast/notification here
+    if (isChanged) {
+        changedFields.add(fieldName)
+        hasChanges.value = true
+    } else {
+        changedFields.delete(fieldName)
+        hasChanges.value = changedFields.size > 0 || previewUrl.value !== null
     }
 }
 
-// File Handling
+const getChangedFields = () => {
+    return Array.from(changedFields)
+        .map(field => {
+            switch (field) {
+                case 'name':
+                    return 'Full Name'
+                case 'nickname':
+                    return 'Display Name'
+                case 'phone_number':
+                    return 'Phone Number'
+                case 'profile_picture':
+                    return 'Profile Picture'
+                default:
+                    return field
+            }
+        })
+        .join(', ')
+}
+
+// File handling
 const handleFileChange = event => {
     const file = event.target.files[0]
     imageError.value = ''
 
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
         imageError.value = 'Please select a valid image file'
         return
     }
 
-    // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
         imageError.value = 'Image size should be less than 5MB'
         return
     }
 
-    // Create preview
     previewUrl.value = URL.createObjectURL(file)
+    changedFields.add('profile_picture')
     hasChanges.value = true
 
-    // Reset file input
     event.target.value = ''
 }
 
 const removeProfilePicture = () => {
     previewUrl.value = null
     if (profilePictureUrl.value) {
+        changedFields.add('profile_picture')
         hasChanges.value = true
     }
     if (fileInput.value) {
@@ -342,15 +367,17 @@ const removeProfilePicture = () => {
 // Form Actions
 const resetForm = () => {
     if (initialData.value) {
-        // Reset form data to initial values
-        Object.assign(formData, initialData.value)
+        // Reset to initial values
+        formData.name = initialData.value.name || ''
+        formData.nickname = initialData.value.nickname || ''
+        formData.phone_number = initialData.value.phone_number || ''
     }
 
-    // Reset all states
     previewUrl.value = null
     hasChanges.value = false
     errors.name = ''
     imageError.value = ''
+    changedFields.clear()
 }
 
 const handleSubmit = async () => {
@@ -359,20 +386,17 @@ const handleSubmit = async () => {
         errors.name = ''
         imageError.value = ''
 
-        // Create FormData instance
         const submitData = new FormData()
         submitData.append('name', formData.name)
         submitData.append('nickname', formData.nickname)
         submitData.append('phone_number', formData.phone_number)
 
-        // Append file if selected
         if (fileInput.value?.files[0]) {
             submitData.append('profile_picture', fileInput.value.files[0])
         }
 
-        // Send request
         const response = await axiosInstance.put(
-            '/api/v1/account/profile',
+            '/accounts/profile',
             submitData,
             {
                 headers: {
@@ -392,17 +416,21 @@ const handleSubmit = async () => {
                 phone_number: formData.phone_number,
             }
 
-            // Update profile picture URL if needed
+            // Update profile picture if provided
             if (response.data.data.profile_picture_url) {
-                profilePictureUrl.value = `/${response.data.data.profile_picture_url}`
+                profilePictureUrl.value = response.data.data.profile_picture_url
             }
 
             // Reset states
             hasChanges.value = false
             previewUrl.value = null
+            changedFields.clear()
 
-            // Show success message (you might want to use a toast here)
-            alert('Profile updated successfully')
+            // Show success message
+            showSuccess.value = true
+            setTimeout(() => {
+                showSuccess.value = false
+            }, 3000)
         }
     } catch (error) {
         console.error('Profile update error:', error)
@@ -414,6 +442,41 @@ const handleSubmit = async () => {
 
 // Initialize component
 onMounted(() => {
+    // Get initial data from auth store first
+    const userData = authStore.user
+    if (userData) {
+        initialData.value = {
+            name: userData.name || '',
+            nickname: userData.nickname || '',
+            phone_number: userData.phone_number || '',
+        }
+
+        // Set initial form data
+        formData.name = userData.name || ''
+        formData.nickname = userData.nickname || ''
+        formData.phone_number = userData.phone_number || ''
+
+        // Set profile picture if exists
+        if (userData.profile_picture_url) {
+            profilePictureUrl.value = userData.profile_picture_url
+        }
+    }
+
+    // Then fetch fresh data
     fetchProfile()
 })
+
+// Watch for changes
+watch(
+    [() => formData.name, () => formData.nickname, () => formData.phone_number],
+    () => {
+        const anyFieldChanged =
+            isFieldChanged('name') ||
+            isFieldChanged('nickname') ||
+            isFieldChanged('phone_number')
+
+        hasChanges.value = anyFieldChanged || previewUrl.value !== null
+    },
+    { deep: true },
+)
 </script>

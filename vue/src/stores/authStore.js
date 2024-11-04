@@ -15,6 +15,14 @@ export const useAuthStore = defineStore('auth', {
         isAuthenticated: state => !!state.accessToken && !!state.user,
         currentUser: state => state.user,
         authError: state => state.error,
+        profilePictureUrl: state => {
+            const baseUrl = import.meta.env.VITE_BASE_API_URL.split(
+                '/api/v1',
+            )[0]
+            return state.user?.user?.profile_picture_url
+                ? `${baseUrl}/${state.user.user.profile_picture_url}`
+                : null
+        },
     },
 
     actions: {
@@ -47,7 +55,14 @@ export const useAuthStore = defineStore('auth', {
         },
 
         setUser(userData) {
-            this.user = userData
+            // Pastikan struktur data sesuai
+            if (userData && !userData.user && typeof userData === 'object') {
+                // Jika userData langsung berisi user data tanpa nesting
+                this.user = { user: userData }
+            } else {
+                // Jika sudah dalam format yang benar (nested dengan user property)
+                this.user = userData
+            }
         },
 
         setToken(token) {
@@ -78,6 +93,7 @@ export const useAuthStore = defineStore('auth', {
         async handleTokenRevocation() {
             try {
                 this.clearAuth()
+                router.push('/signin')
             } catch (error) {
                 console.error('Error handling token revocation:', error)
             }
@@ -99,7 +115,6 @@ export const useAuthStore = defineStore('auth', {
                     return response.data.data
                 }
 
-                // Log actual response structure if validation fails
                 console.error('Unexpected response structure:', response.data)
                 throw new Error('Invalid response structure')
             } catch (error) {
@@ -122,13 +137,18 @@ export const useAuthStore = defineStore('auth', {
                 ) {
                     this.setToken(response.data.data.accessToken)
                     this.setUser(response.data.data.user)
-                }
 
-                router.push('/')
-                return response
+                    // Wait for user data to be set
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                    router.push('/')
+                    return response
+                } else {
+                    throw new Error('Invalid response format')
+                }
             } catch (error) {
                 const errorMessage =
                     error.response?.data?.message ||
+                    error.message ||
                     'Sign up failed. Please try again.'
                 this.setError(errorMessage)
                 throw error
@@ -149,11 +169,24 @@ export const useAuthStore = defineStore('auth', {
                     response?.data?.data?.accessToken
                 ) {
                     this.setToken(response.data.data.accessToken)
-                    this.setUser(response.data.data.user)
-                }
 
-                router.push('/')
-                return response
+                    if (response.data.data.user) {
+                        const userData = {
+                            user: response.data.data.user,
+                        }
+                        this.setUser(userData)
+                    } else {
+                        await this.checkAuth()
+                    }
+
+                    // Wait for user data to be properly set
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                    router.push('/')
+                    return response
+                } else {
+                    console.error('Invalid response format:', response)
+                    throw new Error('Invalid response format')
+                }
             } catch (error) {
                 const errorMessage =
                     error.response?.data?.message ||
@@ -174,6 +207,7 @@ export const useAuthStore = defineStore('auth', {
                 console.error('Logout error:', error)
             } finally {
                 this.clearAuth()
+                router.push('/signin')
             }
         },
     },
