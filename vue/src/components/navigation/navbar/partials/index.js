@@ -1,0 +1,8 @@
+export { default as Logo } from './LogoPartial.vue'
+export { default as Cart } from './CartPartial.vue'
+export { default as Account } from './AccountPartial.vue'
+export { default as Wishlist } from './WishlistPartial.vue'
+export { default as DesktopMenu } from './DesktopMenu.vue'
+export { default as MobileMenu } from './MobileMenu.vue'
+export { default as MenuLink } from './MenuLink.vue'
+export { default as Search } from './SearchPartial.vue'
