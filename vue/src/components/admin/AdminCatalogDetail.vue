@@ -1,11 +1,11 @@
 <template>
     <div class="min-h-screen bg-black p-28">
-        <!-- Header with Search and Filters -->
+        <!-- Header -->
         <div class="mb-8">
             <div class="flex items-start justify-between mb-6">
                 <div class="flex items-center gap-4">
                     <button
-                        @click="goBackToCatalog"
+                        @click="router.push(`/admin/${props.type}`)"
                         class="text-zinc-400 hover:text-purple-400 transition-colors duration-200"
                     >
                         <svg
@@ -29,7 +29,7 @@
                             {{ catalogData?.name }}
                         </h1>
                         <p class="text-zinc-400 mt-1 tracking-wide">
-                            Manage products in {{ type }}
+                            Manage products in {{ props.type }}
                             {{ catalogData?.name?.toLowerCase() }}
                         </p>
                     </div>
@@ -50,18 +50,18 @@
                         type="text"
                         v-model="filters.search"
                         @input="handleSearch"
-                        class="w-full bg-black border border-zinc-800 text-white rounded-lg pl-10 pr-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                         placeholder="Search products..."
+                        class="w-full bg-black border border-zinc-800 text-white rounded-lg pl-10 pr-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                     />
                     <svg
                         class="w-5 h-5 absolute left-3 top-3 text-zinc-400"
                         viewBox="0 0 24 24"
                         fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
                     >
                         <path
                             d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z"
-                            stroke="currentColor"
-                            stroke-width="2"
                             stroke-linecap="round"
                             stroke-linejoin="round"
                         />
@@ -123,6 +123,15 @@
                             <th
                                 class="px-6 py-4 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
                             >
+                                {{
+                                    props.type === 'categories'
+                                        ? 'Collection'
+                                        : 'Category'
+                                }}
+                            </th>
+                            <th
+                                class="px-6 py-4 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+                            >
                                 Status
                             </th>
                             <th
@@ -155,7 +164,6 @@
                                         >
                                             {{ product.name }}
                                         </div>
-                                        <!-- Size Stock Info -->
                                         <div
                                             class="mt-1 grid grid-cols-5 gap-2"
                                         >
@@ -185,6 +193,15 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-mono text-white">
                                     Rp{{ formatPrice(product.price) }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-zinc-300">
+                                    {{
+                                        props.type === 'categories'
+                                            ? product.Collection?.name
+                                            : product.Category?.name
+                                    }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -259,8 +276,8 @@
                     <input
                         type="text"
                         v-model="productForm.name"
-                        class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                         required
+                        class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                     />
                 </div>
 
@@ -290,11 +307,49 @@
                         <input
                             type="number"
                             v-model="productForm.price"
-                            class="w-full bg-black border border-zinc-800 text-white rounded-lg pl-10 pr-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                             required
                             min="0"
+                            class="w-full bg-black border border-zinc-800 text-white rounded-lg pl-10 pr-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                         />
                     </div>
+                </div>
+
+                <!-- Alternative Catalog Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-zinc-400 mb-1">
+                        {{
+                            props.type === 'categories'
+                                ? 'Collection'
+                                : 'Category'
+                        }}
+                    </label>
+                    <select
+                        v-model="
+                            productForm[
+                                props.type === 'categories'
+                                    ? 'collection_id'
+                                    : 'category_id'
+                            ]
+                        "
+                        required
+                        class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
+                    >
+                        <option value="">
+                            Select
+                            {{
+                                props.type === 'categories'
+                                    ? 'Collection'
+                                    : 'Category'
+                            }}
+                        </option>
+                        <option
+                            v-for="item in alternativeCatalog"
+                            :key="item.id"
+                            :value="item.id"
+                        >
+                            {{ item.name }}
+                        </option>
+                    </select>
                 </div>
 
                 <!-- Product Images -->
@@ -307,6 +362,7 @@
                         @change="handleFileChange"
                         multiple
                         accept="image/*"
+                        name="assets"
                         class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                     />
                 </div>
@@ -316,7 +372,6 @@
                     <label class="block text-sm font-medium text-zinc-400 mb-2">
                         Stock by Size
                     </label>
-                    <!-- Size Selection -->
                     <div class="mb-4">
                         <label
                             class="block text-sm font-medium text-zinc-400 mb-1"
@@ -356,9 +411,10 @@
                                 <input
                                     type="number"
                                     v-model="productForm.sizes[sizeId]"
-                                    class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                                     min="0"
                                     placeholder="Enter stock"
+                                    required
+                                    class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
                                 />
                             </div>
                             <button
@@ -408,11 +464,7 @@
             v-if="showDeleteModal"
             :is-open="showDeleteModal"
             title="Delete Product"
-            :message="
-                'Are you sure you want to delete ' +
-                productToDelete?.name +
-                '? This action cannot be undone.'
-            "
+            :message="`Are you sure you want to delete ${productToDelete?.name}? This action cannot be undone.`"
             confirm-text="Delete"
             confirm-type="danger"
             @close="showDeleteModal = false"
@@ -443,19 +495,23 @@ const props = defineProps({
     },
 })
 
-// State Management
+// State
 const catalogData = ref(null)
 const products = ref([])
 const sizes = ref([])
 const selectedSizes = ref([])
+const alternativeCatalog = ref([])
 const showProductModal = ref(false)
 const showDeleteModal = ref(false)
 const editingProduct = ref(null)
 const productToDelete = ref(null)
+
 const productForm = ref({
     name: '',
     description: '',
     price: 0,
+    collection_id: '',
+    category_id: '',
     sizes: {},
     images: [],
 })
@@ -474,10 +530,15 @@ const filters = ref({
     sortBy: 'createdAt,DESC',
 })
 
-// Fetch initial data
+// Initial Data Fetching
 onMounted(async () => {
     try {
-        await Promise.all([fetchCatalogData(), fetchSizes(), fetchProducts()])
+        await Promise.all([
+            fetchCatalogData(),
+            fetchSizes(),
+            fetchProducts(),
+            fetchAlternativeCatalog(),
+        ])
     } catch (error) {
         console.error('Error initializing data:', error)
     }
@@ -504,6 +565,19 @@ async function fetchSizes() {
     }
 }
 
+async function fetchAlternativeCatalog() {
+    try {
+        const endpoint =
+            props.type === 'categories'
+                ? '/collections/summary'
+                : '/categories/summary'
+        const response = await axiosInstance.get(endpoint)
+        alternativeCatalog.value = response.data.data
+    } catch (error) {
+        console.error('Error fetching alternative catalog:', error)
+    }
+}
+
 async function fetchProducts() {
     try {
         const [sortField, sortOrder] = filters.value.sortBy.split(',')
@@ -514,14 +588,12 @@ async function fetchProducts() {
             minPrice: filters.value.minPrice,
             maxPrice: filters.value.maxPrice,
             sortBy: sortField,
-            sortOrder: sortOrder,
+            sortOrder,
         }
 
         const response = await axiosInstance.get(
             `/${props.type}/path/${props.path}`,
-            {
-                params,
-            },
+            { params },
         )
         products.value = response.data.data.Products
         pagination.value = response.data.data.pagination
@@ -530,72 +602,73 @@ async function fetchProducts() {
     }
 }
 
-// Size Management Functions
-function toggleSize(size) {
-    const index = selectedSizes.value.indexOf(size.id)
-    if (index === -1) {
-        selectedSizes.value.push(size.id)
-        // Initialize stock to 0 for new size
-        productForm.value.sizes[size.id] = 0
-    } else {
-        removeSize(size.id)
-    }
-}
-
-function removeSize(sizeId) {
-    const index = selectedSizes.value.indexOf(sizeId)
-    if (index > -1) {
-        selectedSizes.value.splice(index, 1)
-        // Remove size from form
-        delete productForm.value.sizes[sizeId]
-    }
-}
-
 // Form Handlers
 function handleFileChange(event) {
     productForm.value.images = event.target.files
 }
 
+// Dalam fungsi handleSubmit
 async function handleSubmit() {
     try {
         const formData = new FormData()
+
+        // Basic info
         formData.append('name', productForm.value.name)
-        formData.append('description', productForm.value.description)
+        formData.append('description', productForm.value.description || '')
         formData.append('price', productForm.value.price)
 
-        if (props.type === 'categories') {
-            formData.append('category_id', catalogData.value.id)
-        } else {
-            formData.append('collection_id', catalogData.value.id)
-        }
+        // Catalog IDs
+        formData.append(
+            'category_id',
+            props.type === 'categories'
+                ? catalogData.value.id
+                : productForm.value.category_id,
+        )
+        formData.append(
+            'collection_id',
+            props.type === 'collections'
+                ? catalogData.value.id
+                : productForm.value.collection_id,
+        )
 
-        // Hanya kirim size yang dipilih
+        // Sizes
         const sizesArray = selectedSizes.value.map(sizeId => ({
             size_id: parseInt(sizeId),
             stock: parseInt(productForm.value.sizes[sizeId] || 0),
         }))
         formData.append('sizes', JSON.stringify(sizesArray))
 
-        // Add images
-        if (productForm.value.images.length > 0) {
+        // Images - Perbaikan nama field menjadi 'assets'
+        if (productForm.value.images?.length > 0) {
             Array.from(productForm.value.images).forEach(file => {
-                formData.append('images', file)
+                formData.append('assets', file)
             })
+        }
+
+        const config = {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
         }
 
         if (editingProduct.value) {
             await axiosInstance.post(
                 `/products/${editingProduct.value.id}`,
                 formData,
+                config,
             )
         } else {
-            await axiosInstance.post('/products', formData)
+            await axiosInstance.post('/products', formData, config)
         }
 
         closeProductModal()
         fetchProducts()
     } catch (error) {
         console.error('Error submitting product:', error)
+        // Tambahkan error handling yang lebih detail
+        if (error.response) {
+            console.error('Response Error:', error.response.data)
+        }
     }
 }
 
@@ -609,30 +682,51 @@ async function handleDelete() {
     }
 }
 
+// Size Management
+function toggleSize(size) {
+    const index = selectedSizes.value.indexOf(size.id)
+    if (index === -1) {
+        selectedSizes.value.push(size.id)
+        productForm.value.sizes[size.id] = 0
+    } else {
+        removeSize(size.id)
+    }
+}
+
+function removeSize(sizeId) {
+    const index = selectedSizes.value.indexOf(sizeId)
+    if (index > -1) {
+        selectedSizes.value.splice(index, 1)
+        delete productForm.value.sizes[sizeId]
+    }
+}
+
 // Modal Management
 function openProductModal(product = null) {
     editingProduct.value = product
-    selectedSizes.value = [] // Reset selected sizes
+    selectedSizes.value = []
 
     if (product) {
         productForm.value = {
             name: product.name,
             description: product.description,
             price: product.price,
+            collection_id: product.Collection?.id || '',
+            category_id: product.Category?.id || '',
             sizes: {},
             images: [],
         }
-        // Map existing size stock dan set selected sizes
         product.Sizes.forEach(size => {
             productForm.value.sizes[size.id] = size.ProductSize.stock
             selectedSizes.value.push(size.id)
         })
     } else {
-        // Reset form for new product
         productForm.value = {
             name: '',
             description: '',
             price: 0,
+            collection_id: '',
+            category_id: '',
             sizes: {},
             images: [],
         }
@@ -648,6 +742,8 @@ function closeProductModal() {
         name: '',
         description: '',
         price: 0,
+        collection_id: '',
+        category_id: '',
         sizes: {},
         images: [],
     }
@@ -658,20 +754,7 @@ function confirmDelete(product) {
     showDeleteModal.value = true
 }
 
-// Navigation
-function goBackToCatalog() {
-    router.push(`/admin/${props.type}`)
-}
-
-// Filter & Pagination Handlers
-const debounce = (fn, delay) => {
-    let timeoutId
-    return (...args) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => fn(...args), delay)
-    }
-}
-
+// Utility Functions
 const handleSearch = debounce(() => {
     pagination.value.currentPage = 1
     fetchProducts()
@@ -682,16 +765,21 @@ function changePage(page) {
     fetchProducts()
 }
 
-// Utility Functions
+function debounce(fn, delay) {
+    let timeoutId
+    return (...args) => {
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => fn(...args), delay)
+    }
+}
+
 function formatPrice(price) {
     return new Intl.NumberFormat('id-ID').format(price)
 }
 
 function getProductImage(product) {
-    console.log(product)
     if (!product?.ProductAssets?.length) return '/api/placeholder/80/80'
     const baseUrl = import.meta.env.VITE_BASE_API_URL.split('/api/v1')[0]
-    console.log(`${baseUrl}/${product.ProductAssets[0].asset_url}`)
     return `${baseUrl}/${product.ProductAssets[0].asset_url}`
 }
 
