@@ -1,4 +1,4 @@
-const { Category, Product, ProductAsset, sequelize } = require('../models');
+const { Category, Product, ProductAsset, ProductSize, Size, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const categoryController = {
@@ -169,16 +169,22 @@ const categoryController = {
     
             // Then, get the products with pagination
             const productsData = await Product.findAndCountAll({
-                where: whereProduct,
+                where: {
+                    ...whereProduct,
+                    category_id: category.id // Tambahkan filter berdasarkan category_id
+                },
                 include: [
-                    {
-                        model: Category,
-                        where: { path },
-                        attributes: []  // Don't include category data in result
-                    },
                     {
                         model: ProductAsset,
                         attributes: ['asset', 'asset_url']
+                    },
+                    {
+                        model: Size,
+                        through: {
+                            model: ProductSize,
+                            attributes: ['stock']
+                        },
+                        attributes: ['id', 'size']
                     }
                 ],
                 order: [[validSortBy, validSortOrder]],
@@ -209,7 +215,6 @@ const categoryController = {
         }
     },
 
-    // Create new category
     async createCategory(req, res) {
         try {
             const { name, path: customPath } = req.body;
@@ -263,7 +268,6 @@ const categoryController = {
         }
     },
 
-    // Update category
     async updateCategory(req, res) {
         try {
             const { id } = req.params;
@@ -287,7 +291,6 @@ const categoryController = {
 
             const path = customPath || categoryController.generatePath(name);
 
-            // Check if another category with same name or path exists
             const existingCategory = await Category.findOne({
                 where: {
                     [Op.or]: [
@@ -328,7 +331,6 @@ const categoryController = {
         }
     },
 
-    // Delete category
     async deleteCategory(req, res) {
         try {
             const { id } = req.params;

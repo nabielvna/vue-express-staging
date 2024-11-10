@@ -66,41 +66,11 @@
             <!-- Dropdown Menu -->
             <div
                 v-show="isOpen"
-                class="absolute right-0 mt-2 w-48 bg-black border border-gray-700 rounded-lg shadow-lg z-50"
+                class="absolute top-12 right-0 mt-2 w-48 bg-black border border-gray-700 rounded-lg shadow-lg z-50"
             >
                 <div
                     class="p-4 border-b border-gray-700 flex items-center space-x-3"
                 >
-                    <!-- Small Profile Picture in Dropdown -->
-                    <div
-                        class="w-10 h-10 rounded-full overflow-hidden border border-gray-700"
-                    >
-                        <img
-                            v-if="profilePictureUrl"
-                            :src="profilePictureUrl"
-                            :alt="userName"
-                            class="w-full h-full object-cover"
-                            @error="handleImageError"
-                        />
-                        <div
-                            v-else
-                            class="w-full h-full flex items-center justify-center bg-gray-800"
-                        >
-                            <svg
-                                class="w-5 h-5 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                />
-                            </svg>
-                        </div>
-                    </div>
                     <div>
                         <p class="text-sm text-white font-medium">
                             {{ userName }}
@@ -132,6 +102,49 @@
                     Profile
                 </RouterLink>
 
+                <RouterLink
+                    to="/transaction"
+                    class="px-4 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center"
+                    @click="closeDropdown"
+                >
+                    <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                        />
+                    </svg>
+                    Transaction
+                </RouterLink>
+
+                <RouterLink
+                    v-if="isAdmin"
+                    to="/admin/dashboard"
+                    class="px-4 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center"
+                    @click="closeDropdown"
+                >
+                    <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                    </svg>
+                    Admin
+                </RouterLink>
+
                 <button
                     @click="handleLogout"
                     class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-white/10 flex items-center"
@@ -157,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -181,6 +194,11 @@ const userName = computed(() => {
     return user?.nickname || user?.name || 'User'
 })
 
+const isAdmin = computed(() => {
+    const roleName = authStore.user?.user?.Role?.name
+    return roleName === 'superadmin' || roleName === 'admin'
+})
+
 const handleImageError = () => {
     hasImageError.value = true
 }
@@ -194,22 +212,6 @@ const closeDropdown = () => {
         isOpen.value = false
     }, 200)
 }
-
-// Untuk debug
-onMounted(async () => {
-    // Pastikan data user sudah ter-load
-    if (!authStore.user) {
-        try {
-            // Asumsikan ada method getCurrentUser di authStore
-            await authStore.getCurrentUser()
-        } catch (error) {
-            console.error('Failed to load user data:', error)
-        }
-    }
-
-    console.log('Auth Store User:', authStore.user)
-    console.log('Profile Picture URL:', profilePictureUrl.value)
-})
 
 const handleLogout = async () => {
     try {

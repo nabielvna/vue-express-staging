@@ -409,31 +409,34 @@ const productController = {
     async getProductById(req, res) {
         try {
             const { id } = req.params;
-
+    
             const product = await Product.findByPk(id, {
                 include: [
                     { model: ProductAsset },
                     { 
                         model: Size,
-                        through: { attributes: ['stock'] }
+                        through: {
+                            model: ProductSize,  // Include the ProductSize model explicitly
+                            attributes: ['id', 'stock'] // Include the ProductSize id
+                        }
                     },
                     { model: Collection },
                     { model: Category }
                 ]
             });
-
+    
             if (!product) {
                 return res.status(404).json({
                     status: 'error',
                     message: 'Product not found'
                 });
             }
-
+    
             res.json({
                 status: 'success',
                 data: product
             });
-
+    
         } catch (error) {
             console.error('Get Product Error:', error);
             res.status(500).json({

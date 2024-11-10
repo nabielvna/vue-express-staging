@@ -22,18 +22,28 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
-    quantity: DataTypes.INTEGER
+    quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    }
   }, {
     timestamps: true,
-    underscored: true
+    underscored: true,
+    tableName: 'order_items',
+    defaultScope: {
+      attributes: ['id', 'order_id', 'product_size_id', 'quantity']
+    }
   });
 
   OrderItem.associate = (models) => {
-    OrderItem.belongsTo(models.Order);
-    // Ubah ini dari Product ke ProductSize
+    OrderItem.belongsTo(models.Order, {
+      foreignKey: 'order_id',
+      onDelete: 'CASCADE'
+    });
     OrderItem.belongsTo(models.ProductSize, {
       foreignKey: 'product_size_id',
-      as: 'ProductSize'  // Tambahkan alias
+      as: 'ProductSize'
     });
   };
 

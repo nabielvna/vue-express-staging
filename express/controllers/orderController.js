@@ -6,10 +6,10 @@ const {
     Product, 
     ProductSize, 
     ProductAsset,
-    Size,  
-    User, 
+    Size,   
     Cart, 
-    CartItem 
+    CartItem,
+    Address
 } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const { sequelize } = require('../models');
@@ -20,15 +20,33 @@ const orderController = {
         try {
             const { page = 1, limit = 10, status } = req.query;
             const offset = (page - 1) * limit;
-
+    
             const whereClause = {
                 user_id: req.user.id
             };
             if (status) {
                 whereClause.order_status_id = status;
             }
-
-            const { count, rows: orders } = await Order.findAndCountAll({
+    
+            // Get counts by status
+            const [statusCounts] = await sequelize.query(`
+                SELECT 
+                    os.name,
+                    COUNT(DISTINCT o.id) as count
+                FROM order_statuses os
+                LEFT JOIN orders o ON os.id = o.order_status_id 
+                    AND o.user_id = '${req.user.id}'
+                GROUP BY os.id, os.name
+                ORDER BY os.id
+            `);
+    
+            // Get total count first
+            const totalOrders = await Order.count({
+                where: whereClause
+            });
+    
+            // Get paginated orders with details
+            const orders = await Order.findAll({
                 where: whereClause,
                 attributes: ['id', 'total_price', 'total_item', 'created_at', 'updated_at'],
                 include: [
@@ -61,15 +79,22 @@ const orderController = {
                 offset,
                 order: [['created_at', 'DESC']]
             });
-
+    
+            // Transform summary to object format
+            const summary = statusCounts.reduce((acc, curr) => {
+                acc[curr.name] = parseInt(curr.count);
+                return acc;
+            }, {});
+    
             return res.status(200).json({
                 status: 'success',
                 data: {
                     orders,
+                    summary,
                     pagination: {
-                        total: count,
+                        total: totalOrders,
                         page: parseInt(page),
-                        total_pages: Math.ceil(count / limit)
+                        total_pages: Math.ceil(totalOrders / limit)
                     }
                 }
             });
@@ -145,6 +170,30 @@ const orderController = {
 
         try {
             const userId = req.user.id;
+            const { address_id } = req.body;
+
+            // Validate address_id
+            if (!address_id) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Address ID is required'
+                });
+            }
+
+            // Verify address belongs to user
+            const address = await Address.findOne({
+                where: {
+                    id: address_id,
+                    user_id: userId
+                }
+            });
+
+            if (!address) {
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'Invalid address'
+                });
+            }
 
             // Get user's cart with items
             const cart = await Cart.findOne({
@@ -155,48 +204,48 @@ const orderController = {
                         model: ProductSize,
                         as: 'ProductSize',
                         include: [{
-                            model: Product,
-                            attributes: ['name', 'price']
+                            model: Product
                         }]
                     }]
                 }]
             });
 
             if (!cart || !cart.CartItems.length) {
-                await transaction.rollback();
                 return res.status(400).json({
                     status: 'error',
                     message: 'Cart is empty'
                 });
             }
 
-            // Validate stock availability and calculate totals
+            // Verify stock availability and calculate totals
             let totalPrice = 0;
-            let totalItem = 0;
+            let totalItems = 0;
 
             for (const item of cart.CartItems) {
-                if (item.quantity > item.ProductSize.stock) {
-                    await transaction.rollback();
+                const productSize = await ProductSize.findByPk(item.product_size_id);
+                if (!productSize || item.quantity > productSize.stock) {
                     return res.status(400).json({
                         status: 'error',
-                        message: `Insufficient stock for product: ${item.ProductSize.Product.name}`
+                        message: `Insufficient stock for ${item.ProductSize.Product.name}`
                     });
                 }
                 totalPrice += Number(item.ProductSize.Product.price) * item.quantity;
-                totalItem += item.quantity;
+                totalItems += item.quantity;
             }
 
             // Create order
             const order = await Order.create({
                 id: uuidv4(),
                 user_id: userId,
+                address_id: address_id,
                 total_price: totalPrice,
-                total_item: totalItem,
+                total_item: totalItems,
                 order_status_id: 1 // Pending/New
             }, { transaction });
 
             // Create order items and update stock
             for (const item of cart.CartItems) {
+                // Create order item
                 await OrderItem.create({
                     id: uuidv4(),
                     order_id: order.id,
@@ -204,6 +253,7 @@ const orderController = {
                     quantity: item.quantity
                 }, { transaction });
 
+                // Update stock
                 await ProductSize.decrement('stock', {
                     by: item.quantity,
                     where: { id: item.product_size_id },
@@ -211,50 +261,61 @@ const orderController = {
                 });
             }
 
-            // Clear cart
+            // Clear cart items
             await CartItem.destroy({
                 where: { cart_id: cart.id },
                 transaction
             });
 
+            // Reset cart totals
             await cart.update({
                 total_price: 0,
                 total_item: 0
             }, { transaction });
 
+            // Commit transaction
             await transaction.commit();
 
-            // Get complete order with associations
-            const completeOrder = await Order.findByPk(order.id, {
+            // Fetch complete order with correct associations
+            const completeOrder = await Order.findOne({
+                where: { id: order.id },
                 attributes: ['id', 'total_price', 'total_item', 'created_at', 'updated_at'],
                 include: [
                     {
                         model: OrderStatus,
-                        attributes: ['name']
+                        attributes: ['id', 'name']
                     },
                     {
                         model: OrderItem,
-                        attributes: ['id', 'quantity'],
+                        attributes: ['id', 'quantity', 'order_id', 'product_size_id'],
                         include: [{
                             model: ProductSize,
                             as: 'ProductSize',
-                            attributes: ['stock'],
+                            attributes: ['id', 'stock'],
                             include: [{
                                 model: Product,
-                                attributes: ['name', 'price', 'description'],
+                                attributes: ['id', 'name', 'description', 'price'],
                                 include: [{
                                     model: ProductAsset,
-                                    attributes: ['asset', 'asset_url']
+                                    attributes: ['id', 'asset']
                                 }]
-                            }, {
-                                model: Size,
-                                attributes: ['size']
                             }]
                         }]
+                    },
+                    {
+                        model: Address,
+                        attributes: [
+                            'id', 'name', 'street_address', 'subdistrict', 
+                            'city', 'district', 'postal_code', 'province', 'country'
+                        ]
                     }
                 ]
             });
-
+            
+            if (!completeOrder) {
+                throw new Error('Failed to retrieve created order');
+            }
+            
             return res.status(201).json({
                 status: 'success',
                 message: 'Order created successfully',
@@ -262,14 +323,18 @@ const orderController = {
             });
 
         } catch (error) {
-            await transaction.rollback();
+            // Only rollback if transaction hasn't been committed
+            if (!transaction.finished) {
+                await transaction.rollback();
+            }
+            
             console.error('Create Order Error:', error);
             return res.status(500).json({
                 status: 'error',
-                message: 'Failed to create order'
+                message: error.message || 'Failed to create order'
             });
         }
-    },
+    }
 };
 
 module.exports = orderController;

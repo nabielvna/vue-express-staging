@@ -26,6 +26,16 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      address_id: {
+        type: Sequelize.STRING(40),
+        allowNull: false,
+        references: {
+          model: 'addresses',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'RESTRICT'
+      },
       order_status_id: {
         type: Sequelize.INTEGER,
         allowNull: false,

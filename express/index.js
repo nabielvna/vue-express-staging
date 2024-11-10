@@ -126,8 +126,14 @@ app.use(`${baseURL}/addresses`, addressRoute);
 const orderRoute = require('./routes/order');
 app.use(`${baseURL}/orders`, orderRoute);
 
+const orderStatusRoute = require('./routes/orderStatus');
+app.use(`${baseURL}/order-statuses`, orderStatusRoute);
+
 const accountRoute = require('./routes/account');
 app.use(`${baseURL}/accounts`, accountRoute);
+
+const userRoute = require('./routes/user');
+app.use(`${baseURL}/users`, userRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

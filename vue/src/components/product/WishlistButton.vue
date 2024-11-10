@@ -1,5 +1,6 @@
 <template>
     <button
+        v-if="authStore.isAuthenticated"
         @click.stop.prevent="toggleWishlist"
         :class="[
             'absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 backdrop-blur-sm transition-all duration-200',
@@ -29,8 +30,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useAuthStore } from '@/stores/authStore'
 import { wishlistService } from '@/services/wishlistService'
+
+const authStore = useAuthStore()
 
 const props = defineProps({
     productId: {
@@ -43,6 +47,8 @@ const isInWishlist = ref(false)
 const isLoading = ref(false)
 
 const checkWishlistStatus = async () => {
+    if (!authStore.isAuthenticated) return
+
     try {
         isInWishlist.value = await wishlistService.checkWishlistStatus(
             props.productId,
@@ -75,4 +81,16 @@ const toggleWishlist = async () => {
 onMounted(() => {
     checkWishlistStatus()
 })
+
+// Watch for auth state changes
+watch(
+    () => authStore.isAuthenticated,
+    isAuthenticated => {
+        if (isAuthenticated) {
+            checkWishlistStatus()
+        } else {
+            isInWishlist.value = false
+        }
+    },
+)
 </script>
