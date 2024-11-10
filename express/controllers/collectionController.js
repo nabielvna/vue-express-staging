@@ -1,4 +1,4 @@
-const { Collection, Product, ProductAsset, sequelize } = require('../models');
+const { Collection, Category, Product, ProductAsset, ProductSize, Size, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const collectionController = {
@@ -166,22 +166,32 @@ const collectionController = {
     
             // Then, get the products with pagination
             const productsData = await Product.findAndCountAll({
-                where: whereProduct,
+                where: {
+                    ...whereProduct,
+                    collection_id: collection.id // Filter berdasarkan collection_id
+                },
                 include: [
-                    {
-                        model: Collection,
-                        where: { path },
-                        attributes: []  // Don't include collection data in result
-                    },
                     {
                         model: ProductAsset,
                         attributes: ['asset', 'asset_url']
+                    },
+                    {
+                        model: Size,
+                        through: {
+                            model: ProductSize,
+                            attributes: ['stock']
+                        },
+                        attributes: ['id', 'size']
+                    },
+                    {
+                        model: Category,
+                        attributes: ['name'] // Hanya ambil nama collection
                     }
                 ],
                 order: [[validSortBy, validSortOrder]],
                 limit: parseInt(limit),
                 offset: offset,
-                distinct: true // Important for correct count with associations
+                distinct: true
             });
     
             return res.status(200).json({

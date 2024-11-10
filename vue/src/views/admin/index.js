@@ -1,0 +1,7 @@
+export { default as Dashboard } from './DashboardView.vue'
+export { default as Orders } from './OrdersView.vue'
+export { default as Users } from './UsersView.vue'
+export { default as Products } from './ProductsView.vue'
+export { default as Roles } from './UserRoles.vue'
+export { default as AdminCatalog } from './AdminCatalog.vue'
+export { default as AdminCatalogDetail } from './AdminCatalogDetail.vue'

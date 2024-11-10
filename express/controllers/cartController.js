@@ -287,6 +287,7 @@ const cartController = {
           where: { user_id: userId }
         }, {
           model: ProductSize,
+          as: 'ProductSize', // Add the alias here
           include: [{
             model: Product,
             attributes: ['price']
@@ -306,8 +307,8 @@ const cartController = {
 
       // Update cart totals
       await cartItem.Cart.update({
-        total_price: cartItem.Cart.total_price - priceToSubtract,
-        total_item: cartItem.Cart.total_item - cartItem.quantity
+        total_price: Math.max(0, cartItem.Cart.total_price - priceToSubtract),
+        total_item: Math.max(0, cartItem.Cart.total_item - cartItem.quantity)
       });
 
       // Delete cart item

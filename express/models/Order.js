@@ -26,6 +26,14 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    address_id: {
+      type: DataTypes.STRING(40),
+      allowNull: false,
+      references: {
+        model: 'addresses',
+        key: 'id'
+      }
+    },
     order_status_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -36,13 +44,23 @@ module.exports = (sequelize) => {
     }
   }, {
     timestamps: true,
-    underscored: true
+    underscored: true,
+    tableName: 'orders'
   });
 
   Order.associate = (models) => {
-    Order.belongsTo(models.User);
-    Order.belongsTo(models.OrderStatus);
-    Order.hasMany(models.OrderItem);
+    Order.belongsTo(models.User, {
+      foreignKey: 'user_id'
+    });
+    Order.belongsTo(models.OrderStatus, {
+      foreignKey: 'order_status_id'
+    });
+    Order.belongsTo(models.Address, {
+      foreignKey: 'address_id'
+    });
+    Order.hasMany(models.OrderItem, {
+      foreignKey: 'order_id'
+    });
   };
 
   return Order;

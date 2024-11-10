@@ -34,7 +34,7 @@ const roleController = {
                     message: 'Role not found'
                 });
             }
-
+            
             return res.status(200).json({
                 status: 'success',
                 data: role
