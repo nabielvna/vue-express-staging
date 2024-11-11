@@ -10,9 +10,10 @@ router.get('/my-orders/:id', isNormalUser, orderController.getMyOrderById);
 router.post('/', isNormalUser, orderController.createOrder);
 
 // Admin routes
-// router.use(isAdminOrSuperAdmin);
-// router.get('/', orderController.getAllOrders);
-// router.get('/:id', orderController.getOrderById);
-// router.put('/:id/status', orderController.updateOrderStatus);
+router.use(isAdminOrSuperAdmin);
+router.get('/', orderController.getAllOrders);
+router.get('/export', orderController.exportOrders);
+router.get('/:id', orderController.getOrderById);
+router.put('/:id/status', orderController.updateOrderStatus);
 
 module.exports = router;
