@@ -4,7 +4,7 @@
         <nav class="mt-6 px-3">
             <div class="space-y-1">
                 <router-link
-                    v-for="item in menuItems"
+                    v-for="item in filteredMenuItems"
                     :key="item.path"
                     :to="item.path"
                     class="flex items-center px-4 py-3 text-zinc-400 rounded-lg transition-all duration-200 hover:bg-zinc-800/50 group"
@@ -44,28 +44,31 @@
                 </router-link>
             </div>
         </nav>
-
-        <!-- Bottom Section -->
-        <div class="absolute bottom-0 left-0 right-0 p-6">
-            <div
-                class="flex items-center justify-between text-sm text-zinc-400"
-            >
-                <span>Version 1.0.0</span>
-                <a
-                    href="#"
-                    class="hover:text-purple-400 transition-colors duration-200"
-                    >Docs</a
-                >
-            </div>
-        </div>
     </aside>
 </template>
 
 <script setup>
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import { computed } from 'vue'
 import { menuItems } from './MenuConfig'
 
 const route = useRoute()
+const authStore = useAuthStore()
+
+const isSuperAdmin = computed(() => {
+    return authStore.user?.user?.Role?.name === 'superadmin'
+})
+
+const filteredMenuItems = computed(() => {
+    return menuItems.filter(item => {
+        // If the item requires superadmin and user is not superadmin, hide it
+        if (item.requireSuperAdmin && !isSuperAdmin.value) {
+            return false
+        }
+        return true
+    })
+})
 
 const isCurrentRoute = path => {
     return route.path === path

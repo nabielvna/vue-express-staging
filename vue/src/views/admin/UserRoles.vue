@@ -1,39 +1,22 @@
 <template>
     <div class="min-h-screen bg-black p-28">
         <!-- Header -->
-        <div class="mb-8 flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-bold text-white tracking-wider uppercase">
-                    Role Management
-                </h1>
-                <p class="text-zinc-400 mt-1 tracking-wide">
-                    Manage user roles and permissions
-                </p>
-            </div>
-            <button
-                v-if="isSuperAdmin"
-                @click="openAddRoleModal"
-                class="bg-purple-600 text-white px-4 py-2.5 rounded-lg hover:bg-purple-700 transition-all duration-300 flex items-center space-x-2"
-            >
-                <svg
-                    class="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                >
-                    <path
-                        d="M12 4v16m8-8H4"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                </svg>
-                <span>Add Role</span>
-            </button>
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-white tracking-wider uppercase">
+                Role Management
+            </h1>
+            <p class="text-zinc-400 mt-1 tracking-wide">
+                Manage user roles and permissions
+            </p>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="loading" class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
         </div>
 
         <!-- Roles Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div
                 v-for="role in roles"
                 :key="role.id"
@@ -67,50 +50,7 @@
                                 </p>
                             </div>
                         </div>
-
-                        <!-- Role Actions (Superadmin only) -->
-                        <div v-if="isSuperAdmin && !isSystemRole(role.name)" class="flex space-x-2">
-                            <button
-                                @click="editRole(role)"
-                                class="p-2 text-purple-400 hover:text-purple-300 transition-colors"
-                                title="Edit Role"
-                            >
-                                <svg
-                                    class="w-5 h-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                            </button>
-                            <button
-                                @click="confirmDeleteRole(role)"
-                                class="p-2 text-red-400 hover:text-red-300 transition-colors"
-                                title="Delete Role"
-                            >
-                                <svg
-                                    class="w-5 h-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
                     </div>
-                    <p class="text-sm text-zinc-300">{{ role.description || 'No description available' }}</p>
                 </div>
 
                 <!-- Role Users -->
@@ -118,7 +58,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h4 class="text-sm font-medium text-zinc-400">Members</h4>
                         <button
-                            v-if="isSuperAdmin"
+                            v-if="canManageRole(role)"
                             @click="openManageUsers(role)"
                             class="text-sm text-purple-400 hover:text-purple-300 transition-colors"
                         >
@@ -176,58 +116,6 @@
             </div>
         </div>
 
-        <!-- Add/Edit Role Modal -->
-        <NormalModal
-            v-if="showRoleModal"
-            :title="editingRole ? 'Edit Role' : 'Add New Role'"
-            @close="closeRoleModal"
-        >
-            <form @submit.prevent="saveRole" class="space-y-4">
-                <!-- Role Name -->
-                <div>
-                    <label class="block text-sm font-medium text-zinc-400 mb-1">
-                        Role Name
-                    </label>
-                    <input
-                        v-model="roleForm.name"
-                        type="text"
-                        required
-                        class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-                    />
-                </div>
-
-                <!-- Description -->
-                <div>
-                    <label class="block text-sm font-medium text-zinc-400 mb-1">
-                        Description
-                    </label>
-                    <textarea
-                        v-model="roleForm.description"
-                        rows="3"
-                        class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-                    ></textarea>
-                </div>
-
-                <!-- Modal Actions -->
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button
-                        type="button"
-                        @click="closeRoleModal"
-                        class="px-4 py-2 text-zinc-300 hover:text-white transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                        :disabled="loading"
-                    >
-                        {{ editingRole ? 'Update Role' : 'Create Role' }}
-                    </button>
-                </div>
-            </form>
-        </NormalModal>
-
         <!-- Manage Users Modal -->
         <NormalModal
             v-if="showUsersModal"
@@ -258,10 +146,15 @@
                     </svg>
                 </div>
 
+                <!-- No Users Message -->
+                <div v-if="availableUsers.length === 0" class="text-center py-8">
+                    <p class="text-zinc-400">No available users to assign to this role</p>
+                </div>
+
                 <!-- User List -->
-                <div class="max-h-96 overflow-y-auto space-y-2">
+                <div v-else class="max-h-96 overflow-y-auto space-y-2">
                     <div
-                        v-for="user in filteredUsers"
+                        v-for="user in availableUsers"
                         :key="user.id"
                         class="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg"
                     >
@@ -293,20 +186,18 @@
                                 <p class="text-xs text-zinc-400">
                                     {{ user.email }}
                                 </p>
+                                <p class="text-xs text-zinc-500 mt-0.5">
+                                    Current role: {{ user.role || 'User' }}
+                                </p>
                             </div>
                         </div>
 
                         <button
                             v-if="canManageUserRole(user)"
-                            @click="toggleUserRole(user)"
-                            :class="[
-                                'px-3 py-1.5 rounded-lg text-sm transition-colors',
-                                isUserInRole(user)
-                                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                                    : 'bg-purple-600 hover:bg-purple-700 text-white'
-                            ]"
+                            @click="addUserToRole(user)"
+                            class="px-3 py-1.5 rounded-lg text-sm transition-colors bg-purple-600 hover:bg-purple-700 text-white"
                         >
-                            {{ isUserInRole(user) ? 'Remove' : 'Add' }}
+                            Add to {{ selectedRole?.name }}
                         </button>
                     </div>
                 </div>
@@ -326,39 +217,63 @@ const authStore = useAuthStore()
 const roles = ref([])
 const users = ref([])
 const loading = ref(false)
-const showRoleModal = ref(false)
 const showUsersModal = ref(false)
-const editingRole = ref(null)
 const selectedRole = ref(null)
 const searchQuery = ref('')
 
-// Form state
-const roleForm = ref({
-    name: '',
-    description: ''
+// Computed properties
+const isSuperAdmin = computed(() =>
+    authStore.user?.user?.Role?.name === 'superadmin'
+)
+
+const isAdmin = computed(() =>
+    authStore.user?.user?.Role?.name === 'admin'
+)
+
+const availableUsers = computed(() => {
+    if (!users.value || !selectedRole.value) return []
+
+    // First filter users that don't belong to the selected role
+    let filtered = users.value.filter(user => {
+        // Check if user's role is different from selected role
+        return user.role.toLowerCase() !== selectedRole.value.name.toLowerCase()
+    })
+
+    // Then apply search filter if there's a search query
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase()
+        filtered = filtered.filter(user =>
+            user.name.toLowerCase().includes(query) ||
+            user.email.toLowerCase().includes(query)
+        )
+    }
+
+    // Additional permission-based filtering
+    filtered = filtered.filter(user => {
+        // SuperAdmin can manage all users except themselves
+        if (isSuperAdmin.value) {
+            return user.id !== authStore.user?.id
+        }
+
+        // Admin can only manage normal users
+        if (isAdmin.value) {
+            return !['superadmin', 'admin'].includes(user.role.toLowerCase()) &&
+                   user.id !== authStore.user?.id
+        }
+
+        return false
+    })
+
+    return filtered
 })
 
-// Computed
-const isSuperAdmin = computed(() => {
-    return authStore.user?.Role?.name === 'superadmin'
-})
-
-const filteredUsers = computed(() => {
-    if (!searchQuery.value) return users.value
-
-    const query = searchQuery.value.toLowerCase()
-    return users.value.filter(user =>
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query)
-    )
-})
-
-// Methods - API Calls
+// API Methods
 const fetchRoles = async () => {
     try {
         loading.value = true
         const response = await axiosInstance.get('/roles')
         roles.value = response.data.data
+        // console.log(roles.value)
     } catch (error) {
         console.error('Error fetching roles:', error)
         showError('Failed to fetch roles')
@@ -370,11 +285,7 @@ const fetchRoles = async () => {
 const fetchUsers = async () => {
     try {
         loading.value = true
-        const response = await axiosInstance.get('/users', {
-            params: {
-                limit: 100 // Adjust based on your needs
-            }
-        })
+        const response = await axiosInstance.get('/users')
         users.value = response.data.data.users
     } catch (error) {
         console.error('Error fetching users:', error)
@@ -384,66 +295,30 @@ const fetchUsers = async () => {
     }
 }
 
-// Role CRUD Operations
-const saveRole = async () => {
-    try {
-        loading.value = true
-        if (editingRole.value) {
-            // Update existing role
-            await axiosInstance.put(`/roles/${editingRole.value.id}`, {
-                name: roleForm.value.name,
-                description: roleForm.value.description
-            })
-            showSuccess('Role updated successfully')
-        } else {
-            // Create new role
-            await axiosInstance.post('/roles', {
-                name: roleForm.value.name,
-                description: roleForm.value.description
-            })
-            showSuccess('Role created successfully')
-        }
-        await fetchRoles()
-        closeRoleModal()
-    } catch (error) {
-        console.error('Error saving role:', error)
-        showError(error.response?.data?.message || 'Failed to save role')
-    } finally {
-        loading.value = false
-    }
-}
-
-const confirmDeleteRole = async (role) => {
-    try {
-        if (!confirm(`Are you sure you want to delete the ${role.name} role? This action cannot be undone.`)) {
-            return
-        }
-
-        loading.value = true
-        await axiosInstance.delete(`/roles/${role.id}`)
-        showSuccess('Role deleted successfully')
-        await fetchRoles()
-    } catch (error) {
-        console.error('Error deleting role:', error)
-        showError(error.response?.data?.message || 'Failed to delete role')
-    } finally {
-        loading.value = false
-    }
-}
-
 // User Role Management
-const toggleUserRole = async (user) => {
-    if (!selectedRole.value || !canManageUserRole(user)) return
+const addUserToRole = async (user) => {
+    if (!selectedRole.value || !canManageUserRole(user)) {
+        showError('You do not have permission to manage this user\'s role')
+        return
+    }
 
     try {
         loading.value = true
         await axiosInstance.post('/roles/assign', {
             userId: user.id,
-            roleId: isUserInRole(user) ? 1 : selectedRole.value.id // 1 is assumed to be default user role
+            roleId: selectedRole.value.id
         })
 
+        // Refresh roles data to update the UI
         await Promise.all([fetchRoles(), fetchUsers()])
-        showSuccess('User role updated successfully')
+
+        // Update the local users array to reflect the change
+        const userIndex = users.value.findIndex(u => u.id === user.id)
+        if (userIndex !== -1) {
+            users.value[userIndex].role = selectedRole.value.name
+        }
+
+        showSuccess(`User role updated to ${selectedRole.value.name}`)
     } catch (error) {
         console.error('Error updating user role:', error)
         showError(error.response?.data?.message || 'Failed to update user role')
@@ -453,34 +328,13 @@ const toggleUserRole = async (user) => {
 }
 
 // Modal Management
-const openAddRoleModal = () => {
-    editingRole.value = null
-    roleForm.value = {
-        name: '',
-        description: ''
-    }
-    showRoleModal.value = true
-}
-
-const editRole = (role) => {
-    editingRole.value = role
-    roleForm.value = {
-        name: role.name,
-        description: role.description
-    }
-    showRoleModal.value = true
-}
-
-const closeRoleModal = () => {
-    showRoleModal.value = false
-    editingRole.value = null
-    roleForm.value = {
-        name: '',
-        description: ''
-    }
-}
-
 const openManageUsers = async (role) => {
+    // Only allow superadmin to open manage users modal
+    if (!isSuperAdmin.value) {
+        showError('Only Super Admin can manage roles')
+        return
+    }
+
     selectedRole.value = role
     showUsersModal.value = true
     await fetchUsers()
@@ -492,19 +346,18 @@ const closeUsersModal = () => {
     searchQuery.value = ''
 }
 
-// Utility Functions
-const isSystemRole = (roleName) => {
-    return ['superadmin', 'user'].includes(roleName.toLowerCase())
+// Permission and Utility Methods
+const canManageRole = (role) => {
+    if (!role) return false
+    // Only allow superadmin to manage roles
+    return isSuperAdmin.value
 }
 
 const canManageUserRole = (user) => {
-    if (user.Role?.name === 'superadmin') return false
-    if (user.id === authStore.user?.id) return false
-    return true
-}
-
-const isUserInRole = (user) => {
-    return selectedRole.value?.Users?.some(u => u.id === user.id)
+    if (!user) return false
+    // Only allow superadmin to manage user roles
+    // Prevent superadmin from modifying their own role
+    return isSuperAdmin.value && user.id !== authStore.user?.id
 }
 
 const getImageUrl = (url) => {
@@ -513,22 +366,21 @@ const getImageUrl = (url) => {
 }
 
 const getInitials = (name) => {
+    if (!name) return ''
     return name
         .split(' ')
-        .map(word => word.charAt(0))
+        .map(word => word[0])
         .join('')
         .toUpperCase()
 }
 
-// Toast notifications - implement based on your toast system
+// Notifications
 const showSuccess = (message) => {
-    // Implement based on your toast system
-    console.log('Success:', message)
+    console.info(message)
 }
 
 const showError = (message) => {
-    // Implement based on your toast system
-    console.error('Error:', message)
+    console.error(message)
 }
 
 // Lifecycle Hooks
@@ -536,48 +388,8 @@ onMounted(async () => {
     await fetchRoles()
 })
 
-// Exports (if needed)
+// Exposed Methods
 defineExpose({
-    fetchRoles,
-    openAddRoleModal,
-    closeRoleModal
+    fetchRoles
 })
 </script>
-
-<style scoped>
-/* Custom scrollbar styling */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #18181b;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #3f3f46;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #52525b;
-}
-
-/* Role card hover effects */
-.role-card {
-    transition: all 0.3s ease-in-out;
-}
-
-.role-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(147, 51, 234, 0.1);
-}
-
-/* Loading state styles */
-.loading-overlay {
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-}
-</style>

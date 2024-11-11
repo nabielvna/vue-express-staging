@@ -7,6 +7,7 @@ export const authGuard = async (to, from, next) => {
     const authOnlyRoutes = ['/signin', '/signup', '/forgot-password']
     const userOnlyRoutes = ['/wishlist', '/cart', '/account', '/transaction']
     const adminOnlyRoutes = ['/admin']
+    const superadminOnlyRoutes = ['/admin/roles',]
     const publicPaths = {
         exact: ['/', '/collections', '/categories'],
         startsWith: ['/collections/', '/categories/', '/product/'],
@@ -23,6 +24,13 @@ export const authGuard = async (to, from, next) => {
         return adminOnlyRoutes.includes(path) || path.startsWith('/admin/')
     }
 
+    const isSuperadminOnlyRoute = path => {
+        return superadminOnlyRoutes.includes(path) ||
+               path.startsWith('/system/') ||
+               path.startsWith('/roles/') ||
+               path.startsWith('/audit-logs/')
+    }
+
     const isPublicRoute = path => {
         // Check exact matches first
         if (publicPaths.exact.includes(path)) return true
@@ -32,9 +40,11 @@ export const authGuard = async (to, from, next) => {
     }
 
     try {
-        // Route yang membutuhkan auth hanya user-only dan admin-only routes
+        // Route yang membutuhkan auth: user-only, admin-only, dan superadmin-only routes
         const requiresAuth =
-            isUserOnlyRoute(to.path) || isAdminOnlyRoute(to.path)
+            isUserOnlyRoute(to.path) ||
+            isAdminOnlyRoute(to.path) ||
+            isSuperadminOnlyRoute(to.path)
 
         // Initialize auth only if needed
         if (requiresAuth && !authStore.initialized) {
@@ -63,12 +73,19 @@ export const authGuard = async (to, from, next) => {
                 return
             }
 
+            const userRole = authStore.user?.user?.Role?.name
+
+            // Superadmin only routes check
+            if (isSuperadminOnlyRoute(to.path)) {
+                if (userRole !== 'superadmin') {
+                    next('/')
+                    return
+                }
+            }
+
             // Admin only routes check
             if (isAdminOnlyRoute(to.path)) {
-                if (
-                    authStore.user?.user?.Role?.name !== 'admin' &&
-                    authStore.user?.user?.Role?.name !== 'superadmin'
-                ) {
+                if (userRole !== 'admin' && userRole !== 'superadmin') {
                     next('/')
                     return
                 }
@@ -79,7 +96,7 @@ export const authGuard = async (to, from, next) => {
         }
 
         // Non-authenticated users access control
-        if (isUserOnlyRoute(to.path) || isAdminOnlyRoute(to.path)) {
+        if (isUserOnlyRoute(to.path) || isAdminOnlyRoute(to.path) || isSuperadminOnlyRoute(to.path)) {
             next('/signin')
             return
         }

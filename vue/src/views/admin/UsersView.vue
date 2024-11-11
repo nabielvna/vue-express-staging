@@ -289,26 +289,6 @@
                     <div>
                         <label
                             class="block text-sm font-medium text-zinc-400 mb-1"
-                            >Role</label
-                        >
-                        <select
-                            v-model="userForm.role_id"
-                            class="w-full bg-black border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-300"
-                            required
-                        >
-                            <option
-                                v-for="role in roles"
-                                :key="role.id"
-                                :value="role.id"
-                            >
-                                {{ role.name }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label
-                            class="block text-sm font-medium text-zinc-400 mb-1"
                             >Profile Picture</label
                         >
                         <input
@@ -438,7 +418,6 @@ const userForm = ref({
     name: '',
     email: '',
     password: '',
-    role_id: '',
 })
 
 // API Methods
@@ -497,7 +476,6 @@ const openAddUserModal = () => {
         name: '',
         email: '',
         password: '',
-        role_id: roles.value[0]?.id || '',
     }
     selectedFile.value = null
     showModal.value = true
@@ -512,10 +490,6 @@ const editUser = user => {
         name: user.name,
         email: user.email,
         phone_number: user.phone_number || '',
-        role_id:
-            roles.value.find(r => r.name === user.role)?.id ||
-            roles.value[0]?.id ||
-            '',
     }
     selectedFile.value = null
     showModal.value = true
@@ -530,7 +504,6 @@ const closeModal = () => {
         name: '',
         email: '',
         password: '',
-        role_id: '',
     }
 }
 
